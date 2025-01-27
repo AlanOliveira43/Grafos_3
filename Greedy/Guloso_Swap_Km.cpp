@@ -83,7 +83,7 @@ vector<vector<double>> loadMatrixFromCSV(const string& filePath) {
 
 int main() {
     // Caminho do arquivo .csv com a matriz de distâncias
-    string filePath = "matriz.csv";
+    string filePath = "../matriz_1_modificado.csv";
 
     // Carregar a matriz de distâncias
     vector<vector<double>> distanceMatrix = loadMatrixFromCSV(filePath);

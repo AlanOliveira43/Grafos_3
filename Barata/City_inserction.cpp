@@ -1,5 +1,8 @@
 #include <iostream>
 #include <vector>
+#include <fstream>
+#include <sstream>
+#include <string>
 #include <limits>
 #include <algorithm>
 
@@ -7,8 +10,47 @@ using namespace std;
 
 typedef vector<vector<double>> Matrix;
 
-default_random_engine generator;
+// Função para carregar a matriz de custos a partir de um arquivo .csv
+Matrix loadMatrixFromCSV(const string& filePath) {
+    Matrix matrix;
+    ifstream file(filePath);
 
+    if (!file.is_open()) {
+        cerr << "Erro ao abrir o arquivo: " << filePath << endl;
+        return matrix;
+    }
+
+    string line;
+    while (getline(file, line)) {
+        vector<double> row;
+        stringstream ss(line);
+        string value;
+
+        while (getline(ss, value, ',')) { // Usa vírgula como separador
+            try {
+                row.push_back(stod(value)); // Converte o valor para double
+            } catch (const invalid_argument&) {
+                row.push_back(0); // Adiciona 0 caso não consiga converter
+            }
+        }
+
+        matrix.push_back(row);
+    }
+
+    file.close();
+    return matrix;
+}
+
+// Função para calcular o custo total de um percurso
+double calculatePathCost(const vector<int>& path, const Matrix& costMatrix) {
+    double cost = 0;
+    for (size_t i = 0; i < path.size() - 1; ++i) {
+        cost += costMatrix[path[i]][path[i + 1]];
+    }
+    return cost;
+}
+
+// Algoritmo de Inserção Mais Barata (City Insertion)
 pair<vector<int>, double> insercaoMaisBarataCityInsertion(const Matrix& costMatrix) {
     int n = costMatrix.size(); // Número de cidades
 
@@ -48,62 +90,29 @@ pair<vector<int>, double> insercaoMaisBarataCityInsertion(const Matrix& costMatr
         visited[bestCity] = true;
     }
 
-    // Passo 3: Otimizar com Inserção de Cidades (City Insertion)
-    bool improved = true;
-    while (improved) {
-        improved = false;
-
-        for (size_t i = 1; i < route.size() - 2; ++i) { // Não considerar cidade inicial e final
-            int cityToMove = route[i];
-            route.erase(route.begin() + i); // Remover a cidade temporariamente
-
-            double bestLocalIncrease = numeric_limits<double>::infinity();
-            int bestLocalPosition = -1;
-
-            // Avaliar todas as novas posições para inserir a cidade
-            for (size_t pos = 0; pos < route.size() - 1; ++pos) {
-                double increase = costMatrix[route[pos]][cityToMove] +
-                                 costMatrix[cityToMove][route[pos + 1]] -
-                                 costMatrix[route[pos]][route[pos + 1]];
-
-                if (increase < bestLocalIncrease) {
-                    bestLocalIncrease = increase;
-                    bestLocalPosition = pos;
-                }
-            }
-
-            // Se encontrar uma posição melhor, atualizar a rota
-            if (bestLocalIncrease < 0) {
-                route.insert(route.begin() + bestLocalPosition + 1, cityToMove);
-                improved = true;
-                break;
-            } else {
-                route.insert(route.begin() + i, cityToMove);
-            }
-        }
-    }
-
     // Passo 4: Calcular o custo total da rota final
-    double bestCost = 0;
-    for (size_t i = 0; i < route.size() - 1; ++i) {
-        bestCost += costMatrix[route[i]][route[i + 1]];
-    }
+    double bestCost = calculatePathCost(route, costMatrix);
 
     return {route, bestCost};
 }
 
 // Função principal para testar o algoritmo
 int main() {
-    // Exemplo de matriz de custo
-    Matrix costMatrix = {
-        {0, 10, 15, 20},
-        {10, 0, 35, 25},
-        {15, 35, 0, 30},
-        {20, 25, 30, 0}
-    };
+    // Caminho para o arquivo .csv com a matriz de custos
+    string filePath = "matriz_1_modificado.csv";
 
+    // Carregar a matriz de custos
+    Matrix costMatrix = loadMatrixFromCSV(filePath);
+
+    if (costMatrix.empty()) {
+        cerr << "Erro: Matriz de custos não carregada." << endl;
+        return 1;
+    }
+
+    // Executar o algoritmo de Inserção Mais Barata
     auto result = insercaoMaisBarataCityInsertion(costMatrix);
 
+    // Exibir os resultados
     cout << "Melhor rota encontrada: ";
     for (int city : result.first) {
         cout << city << " ";

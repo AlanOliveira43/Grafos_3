@@ -4,12 +4,46 @@
 #include <limits>
 #include <random>
 #include <ctime>
+#include <fstream>
+#include <sstream>
+#include <string>
 
 using namespace std;
 
 typedef vector<vector<double>> Matrix;
 
 default_random_engine generator(time(0));
+
+// Função para carregar a matriz de custos de um arquivo .csv
+Matrix loadMatrixFromCSV(const string& filePath) {
+    Matrix matrix;
+    ifstream file(filePath);
+
+    if (!file.is_open()) {
+        cerr << "Erro ao abrir o arquivo: " << filePath << endl;
+        return matrix;
+    }
+
+    string line;
+    while (getline(file, line)) {
+        vector<double> row;
+        stringstream ss(line);
+        string value;
+
+        while (getline(ss, value, ',')) { // Usa vírgula como separador
+            try {
+                row.push_back(stod(value)); // Converte o valor para double
+            } catch (const invalid_argument&) {
+                row.push_back(0); // Adiciona 0 caso não consiga converter
+            }
+        }
+
+        matrix.push_back(row);
+    }
+
+    file.close();
+    return matrix;
+}
 
 // Função para calcular o custo total da rota
 double calculateRouteCost(const vector<int>& route, const Matrix& costMatrix) {
@@ -108,13 +142,16 @@ pair<vector<int>, double> grasp(const Matrix& costMatrix, int maxIterations, dou
 
 // Função principal para testar o algoritmo GRASP
 int main() {
-    // Exemplo de matriz de custo
-    Matrix costMatrix = {
-        {0, 10, 15, 20},
-        {10, 0, 35, 25},
-        {15, 35, 0, 30},
-        {20, 25, 30, 0}
-    };
+    // Caminho para o arquivo CSV contendo a matriz de custos
+    string filePath = "../matriz_1_modificado.csv";
+
+    // Carregar a matriz de custos
+    Matrix costMatrix = loadMatrixFromCSV(filePath);
+
+    if (costMatrix.empty()) {
+        cerr << "Erro: Matriz de custos não carregada." << endl;
+        return 1;
+    }
 
     int maxIterations = 100;
     double alpha = 0.3; // Controle do nível de aleatoriedade

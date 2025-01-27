@@ -1,7 +1,10 @@
 #include <iostream>
 #include <vector>
-#include <limits>
+#include <fstream>
+#include <sstream>
+#include <string>
 #include <algorithm>
+#include <limits>
 
 using namespace std;
 
@@ -12,40 +15,6 @@ double calculatePathCost(const vector<int>& path, const vector<vector<double>>& 
         cost += distanceMatrix[path[i]][path[i + 1]];
     }
     return cost;
-}
-
-// Algoritmo Guloso para encontrar uma solução inicial
-pair<vector<int>, double> greedyTSP(const vector<vector<double>>& distanceMatrix) {
-    size_t numCities = distanceMatrix.size();
-    vector<bool> visited(numCities, false);
-    vector<int> path;
-    int currentCity = 0;
-    visited[currentCity] = true;
-    path.push_back(currentCity);
-    double totalCost = 0;
-
-    for (size_t i = 1; i < numCities; ++i) {
-        double minDistance = numeric_limits<double>::infinity();
-        int nextCity = -1;
-
-        for (size_t j = 0; j < numCities; ++j) {
-            if (!visited[j] && distanceMatrix[currentCity][j] < minDistance) {
-                minDistance = distanceMatrix[currentCity][j];
-                nextCity = j;
-            }
-        }
-
-        path.push_back(nextCity);
-        visited[nextCity] = true;
-        totalCost += minDistance;
-        currentCity = nextCity;
-    }
-
-    // Retorna à cidade inicial
-    totalCost += distanceMatrix[currentCity][path[0]];
-    path.push_back(path[0]);
-
-    return {path, totalCost};
 }
 
 // Método de Troca de Vizinhos (Swap)
@@ -59,7 +28,7 @@ pair<vector<int>, double> swapNeighbors(const vector<int>& initialPath, const ve
         for (size_t i = 1; i < bestPath.size() - 2; ++i) {
             for (size_t j = i + 1; j < bestPath.size() - 1; ++j) {
                 vector<int> newPath = bestPath;
-                swap(newPath[i], newPath[j]);
+                swap(newPath[i], newPath[j]); // Troca as cidades i e j
                 double newCost = calculatePathCost(newPath, distanceMatrix);
 
                 if (newCost < bestCost) {
@@ -74,32 +43,82 @@ pair<vector<int>, double> swapNeighbors(const vector<int>& initialPath, const ve
     return {bestPath, bestCost};
 }
 
-int main() {
-    // Exemplo de matriz de distâncias
-    vector<vector<double>> distanceMatrix = {
-        {0, 38.8, 29.7, 37.4},
-        {38.8, 0, 31.5, 39.3},
-        {29.7, 31.5, 0, 9.9},
-        {37.4, 39.3, 9.9, 0}
-    };
+// Função para carregar a matriz de distâncias a partir de um arquivo CSV
+vector<vector<double>> loadMatrixFromCSV(const string& filePath) {
+    vector<vector<double>> matrix;
+    ifstream file(filePath);
 
-    // Aplicar o Algoritmo Guloso
-    auto [greedyPath, greedyCost] = greedyTSP(distanceMatrix);
-
-    cout << "Percurso inicial (Guloso): ";
-    for (int city : greedyPath) {
-        cout << city << " ";
+    if (!file.is_open()) {
+        cerr << "Erro ao abrir o arquivo: " << filePath << endl;
+        return matrix;
     }
-    cout << "\nCusto inicial: " << greedyCost << "\n";
+
+    string line;
+    bool isHeader = true; // Ignora o cabeçalho na primeira linha
+    while (getline(file, line)) {
+        if (isHeader) {
+            isHeader = false;
+            continue; // Pula o cabeçalho
+        }
+
+        vector<double> row;
+        stringstream ss(line);
+        string value;
+
+        while (getline(ss, value, ';')) { // Usa ponto e vírgula como separador
+            replace(value.begin(), value.end(), ',', '.'); // Substitui vírgulas por pontos
+            try {
+                row.push_back(stod(value)); // Converte para double
+            } catch (const invalid_argument&) {
+                row.push_back(0); // Caso não seja possível converter, adiciona 0
+            }
+        }
+
+        matrix.push_back(row);
+    }
+
+    file.close();
+    return matrix;
+}
+
+int main() {
+    // Caminho do arquivo .csv com a matriz de distâncias
+    string filePath = "matriz.csv";
+
+    // Carregar a matriz de distâncias
+    vector<vector<double>> distanceMatrix = loadMatrixFromCSV(filePath);
+
+    if (distanceMatrix.empty()) {
+        cerr << "Erro: Matriz de distâncias não carregada." << endl;
+        return 1;
+    }
+
+    // Inicializar o percurso (0 -> 1 -> 2 -> ... -> n-1 -> 0)
+    size_t numCities = distanceMatrix.size();
+    vector<int> initialPath(numCities + 1);
+    for (size_t i = 0; i < numCities; ++i) {
+        initialPath[i] = i;
+    }
+    initialPath[numCities] = 0; // Retorna à cidade inicial
+
+    // Cálculo do custo inicial
+    double initialCost = calculatePathCost(initialPath, distanceMatrix);
 
     // Aplicar o método de Troca de Vizinhos
-    auto [optimizedPath, optimizedCost] = swapNeighbors(greedyPath, distanceMatrix);
+    auto [optimizedPath, optimizedCost] = swapNeighbors(initialPath, distanceMatrix);
 
-    cout << "Percurso otimizado (Swap): ";
+    // Exibir resultados
+    cout << "Percurso inicial: ";
+    for (int city : initialPath) {
+        cout << city << " ";
+    }
+    cout << "\nCusto inicial: " << initialCost << endl;
+
+    cout << "Percurso otimizado: ";
     for (int city : optimizedPath) {
         cout << city << " ";
     }
-    cout << "\nCusto otimizado: " << optimizedCost << "\n";
+    cout << "\nCusto otimizado: " << optimizedCost << endl;
 
     return 0;
 }

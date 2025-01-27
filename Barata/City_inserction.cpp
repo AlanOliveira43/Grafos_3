@@ -99,7 +99,7 @@ pair<vector<int>, double> insercaoMaisBarataCityInsertion(const Matrix& costMatr
 // Função principal para testar o algoritmo
 int main() {
     // Caminho para o arquivo .csv com a matriz de custos
-    string filePath = "matriz_1_modificado.csv";
+    string filePath = "../matriz_1_modificado.csv";
 
     // Carregar a matriz de custos
     Matrix costMatrix = loadMatrixFromCSV(filePath);

@@ -149,10 +149,10 @@ void executeAndCompare(const Matrix& costMatrix, const vector<string>& cities, c
 
 // Função principal
 int main() {
-    string distanceFile = "Km.csv";   // Caminho do arquivo CSV com distâncias
-    string timeFile = "Min.csv";      // Caminho do arquivo CSV com tempos
-    string citiesFile = "Cidades.csv"; // Caminho do arquivo CSV com nomes das cidades
-    string outputFile = "resultados.csv"; // Arquivo de saída
+    string distanceFile = "../Km.csv";   // Caminho do arquivo CSV com distâncias
+    string timeFile = "../Min.csv";      // Caminho do arquivo CSV com tempos
+    string citiesFile = "../Cidades.csv"; // Caminho do arquivo CSV com nomes das cidades
+    string outputFile = "../resultados.csv"; // Arquivo de saída
 
     // Carregar os dados
     Matrix distanceMatrix = loadMatrixFromCSV(distanceFile);

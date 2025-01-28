@@ -115,14 +115,23 @@ pair<vector<int>, double> insertionMaisBarata(const Matrix& costMatrix) {
 
 // Função para executar e registrar os resultados
 void executeAndCompare(const Matrix& costMatrix, const vector<string>& cities, const string& outputFile, const string& mode) {
-    ofstream outFile(outputFile);
+    if (costMatrix.size() != cities.size()) {
+        cerr << "Erro: O tamanho da matriz de custos não corresponde ao número de cidades." << endl;
+        return;
+    }
+
+    ofstream outFile(outputFile, ios::app); // Abre em modo append
     if (!outFile.is_open()) {
         cerr << "Erro ao criar o arquivo de saída: " << outputFile << endl;
         return;
     }
 
-    // Escrever cabeçalho no arquivo
-    outFile << "Problema,Rota,Custo,Tempo(ms),Modo\n";
+    // Escrever cabeçalho apenas na primeira execução
+    static bool headerWritten = false;
+    if (!headerWritten) {
+        outFile << "Problema,Rota,Custo,Tempo(ms),Modo\n";
+        headerWritten = true;
+    }
 
     auto start = high_resolution_clock::now();
     auto [route, cost] = insertionMaisBarata(costMatrix);
@@ -131,7 +140,7 @@ void executeAndCompare(const Matrix& costMatrix, const vector<string>& cities, c
     auto duration = duration_cast<milliseconds>(end - start).count();
 
     // Registrar resultados
-    outFile << "Problema 1,\"";
+    outFile << "Problema,\"";
     for (int city : route) {
         outFile << cities[city] << " ";
     }

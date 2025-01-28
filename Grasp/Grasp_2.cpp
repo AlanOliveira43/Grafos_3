@@ -14,7 +14,7 @@ typedef vector<vector<double>> Matrix;
 
 default_random_engine generator(time(0));
 
-// Função para carregar a matriz de custos de um arquivo .csv
+// Função para carregar a matriz de custos de um arquivo CSV
 Matrix loadMatrixFromCSV(const string& filePath) {
     Matrix matrix;
     ifstream file(filePath);
@@ -45,7 +45,28 @@ Matrix loadMatrixFromCSV(const string& filePath) {
     return matrix;
 }
 
-// Função para calcular o custo total da rota
+// Função para carregar os nomes das cidades de um arquivo CSV
+vector<string> loadCitiesFromCSV(const string& filePath) {
+    vector<string> cities;
+    ifstream file(filePath);
+
+    if (!file.is_open()) {
+        cerr << "Erro ao abrir o arquivo: " << filePath << endl;
+        return cities;
+    }
+
+    string line;
+    while (getline(file, line)) {
+        if (!line.empty()) {
+            cities.push_back(line);
+        }
+    }
+
+    file.close();
+    return cities;
+}
+
+// Função para calcular o custo total de uma rota
 double calculateRouteCost(const vector<int>& route, const Matrix& costMatrix) {
     double cost = 0;
     for (size_t i = 0; i < route.size() - 1; ++i) {
@@ -177,39 +198,50 @@ pair<vector<int>, double> grasp(const Matrix& costMatrix, int maxIterations, dou
     return {bestRoute, bestCost};
 }
 
-// Função principal para testar o algoritmo GRASP
+// Função para salvar os resultados em um arquivo CSV
+void saveResults(const string& outputFile, const string& mode, const vector<int>& route, double cost, const vector<string>& cities) {
+    ofstream outFile(outputFile, ios::app);
+
+    if (!outFile.is_open()) {
+        cerr << "Erro ao abrir o arquivo: " << outputFile << endl;
+        return;
+    }
+
+    outFile << mode << ",\"";
+    for (int city : route) {
+        outFile << cities[city] << " ";
+    }
+    outFile << "\"," << cost << "\n";
+
+    outFile.close();
+}
+
+// Função principal
 int main() {
-    // Caminho para o arquivo CSV contendo a matriz de custos
-    string filePath = "../matriz_1_modificado.csv";
+    // Caminhos dos arquivos
+    string distanceFile = "../Km_modificado.csv";
+    string timeFile = "../Min_modificado.csv";
+    string citiesFile = "../Cidades.csv";
+    string outputFile = "../resultados_Grasp_3CSV.csv";
 
-    // Carregar a matriz de custos
-    Matrix costMatrix = loadMatrixFromCSV(filePath);
+    // Carregar a matriz de distâncias
+    Matrix distanceMatrix = loadMatrixFromCSV(distanceFile);
+    Matrix timeMatrix = loadMatrixFromCSV(timeFile);
+    vector<string> cities = loadCitiesFromCSV(citiesFile);
 
-    if (costMatrix.empty()) {
-        cerr << "Erro: Matriz de custos não carregada." << endl;
+    if (distanceMatrix.empty() || timeMatrix.empty() || cities.empty()) {
+        cerr << "Erro: Dados não carregados corretamente." << endl;
         return 1;
     }
 
     int maxIterations = 100;
-    double alpha = 0.3; // Controle do nível de aleatoriedade
+    double alpha = 0.3;
 
-    // GRASP com busca local 2-opt
-    auto result2Opt = grasp(costMatrix, maxIterations, alpha, true);
-    cout << "GRASP com 2-opt:" << endl;
-    cout << "Melhor rota: ";
-    for (int city : result2Opt.first) {
-        cout << city << " ";
-    }
-    cout << "\nCusto total: " << result2Opt.second << endl;
+    auto result = grasp(distanceMatrix, maxIterations, alpha, true);
+    saveResults(outputFile, "GRASP - Distância - 2-opt", result.first, result.second, cities);
 
-    // GRASP com reinserção de cidades
-    auto resultCityReinsertion = grasp(costMatrix, maxIterations, alpha, false);
-    cout << "\nGRASP com reinserção de cidades:" << endl;
-    cout << "Melhor rota: ";
-    for (int city : resultCityReinsertion.first) {
-        cout << city << " ";
-    }
-    cout << "\nCusto total: " << resultCityReinsertion.second << endl;
+    result = grasp(timeMatrix, maxIterations, alpha, false);
+    saveResults(outputFile, "GRASP - Tempo - City Reinsertion", result.first, result.second, cities);
 
     return 0;
 }

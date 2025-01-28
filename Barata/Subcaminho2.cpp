@@ -5,8 +5,10 @@
 #include <string>
 #include <limits>
 #include <algorithm>
+#include <chrono> // Incluindo chrono para medir o tempo
 
 using namespace std;
+using namespace chrono; // Para facilitar o uso das funções de medição de tempo
 
 typedef vector<vector<double>> Matrix;
 
@@ -141,7 +143,7 @@ pair<vector<int>, double> twoOpt(const vector<int>& initialPath, const Matrix& c
 }
 
 // Função para salvar os resultados em um arquivo CSV
-void saveResults(const string& outputFile, const string& mode, const vector<int>& route, double cost, const vector<string>& cities) {
+void saveResults(const string& outputFile, const string& mode, const vector<int>& route, double cost, const vector<string>& cities, double executionTime) {
     ofstream outFile(outputFile, ios::app);
 
     if (!outFile.is_open()) {
@@ -152,7 +154,7 @@ void saveResults(const string& outputFile, const string& mode, const vector<int>
     // Cabeçalho na primeira execução
     static bool headerWritten = false;
     if (!headerWritten) {
-        outFile << "Modo,Rota,Custo\n";
+        outFile << "Modo,Rota,Custo,Tempo (s)\n";
         headerWritten = true;
     }
 
@@ -160,7 +162,7 @@ void saveResults(const string& outputFile, const string& mode, const vector<int>
     for (int city : route) {
         outFile << cities[city] << " ";
     }
-    outFile << "\"," << cost << "\n";
+    outFile << "\"," << cost << "," << executionTime << "\n";
 
     outFile.close();
 }
@@ -191,25 +193,42 @@ int main() {
         return 1;
     }
 
-    // Aplicar o Algoritmo da Inserção Mais Barata com distâncias
+    // Medir tempo para Inserção Mais Barata com distâncias
+    auto start = high_resolution_clock::now();
     auto [initialRouteDist, initialCostDist] = insercaoMaisBarata(distanceMatrix);
-    cout << "Custo inicial (Distância): " << initialCostDist << endl;
-    saveResults(outputFile, "Distância - Inserção Mais Barata", initialRouteDist, initialCostDist, cities);
+    auto end = high_resolution_clock::now();
+    double executionTimeDist = duration_cast<duration<double>>(end - start).count();
 
-    // Aplicar o método 2-opt com distâncias
+    cout << "Custo inicial (Distância): " << initialCostDist << " | Tempo: " << executionTimeDist << "s" << endl;
+    saveResults(outputFile, "Distância - Inserção Mais Barata", initialRouteDist, initialCostDist, cities, executionTimeDist);
+
+    // Medir tempo para 2-opt com distâncias
+    start = high_resolution_clock::now();
     auto [optimizedRouteDist, optimizedCostDist] = twoOpt(initialRouteDist, distanceMatrix);
-    cout << "Custo otimizado (Distância - 2-opt): " << optimizedCostDist << endl;
-    saveResults(outputFile, "Distância - 2-opt", optimizedRouteDist, optimizedCostDist, cities);
+    end = high_resolution_clock::now();
+    double executionTimeOptDist = duration_cast<duration<double>>(end - start).count();
 
-    // Aplicar o Algoritmo da Inserção Mais Barata com tempos
+    cout << "Custo otimizado (Distância - 2-opt): " << optimizedCostDist << " | Tempo: " << executionTimeOptDist << "s" << endl;
+    saveResults(outputFile, "Distância - 2-opt", optimizedRouteDist, optimizedCostDist, cities, executionTimeOptDist);
+
+    // Medir tempo para Inserção Mais Barata com tempos
+    start = high_resolution_clock::now();
     auto [initialRouteTime, initialCostTime] = insercaoMaisBarata(timeMatrix);
-    cout << "Custo inicial (Tempo): " << initialCostTime << endl;
-    saveResults(outputFile, "Tempo - Inserção Mais Barata", initialRouteTime, initialCostTime, cities);
+    end = high_resolution_clock::now();
+    double executionTimeTime = duration_cast<duration<double>>(end - start).count();
 
-    // Aplicar o método 2-opt com tempos
+    cout << "Custo inicial (Tempo): " << initialCostTime << " | Tempo: " << executionTimeTime << "s" << endl;
+    saveResults(outputFile, "Tempo - Inserção Mais Barata", initialRouteTime, initialCostTime, cities, executionTimeTime);
+
+    // Medir tempo para 2-opt com tempos
+    start = high_resolution_clock::now();
     auto [optimizedRouteTime, optimizedCostTime] = twoOpt(initialRouteTime, timeMatrix);
-    cout << "Custo otimizado (Tempo - 2-opt): " << optimizedCostTime << endl;
-    saveResults(outputFile, "Tempo - 2-opt", optimizedRouteTime, optimizedCostTime, cities);
+    end = high_resolution_clock::now();
+    double executionTimeOptTime = duration_cast<duration<double>>(end - start).count();
+
+    cout << "Custo otimizado (Tempo - 2-opt): " << optimizedCostTime << " | Tempo: " << executionTimeOptTime << "s" << endl;
+    saveResults(outputFile, "Tempo - 2-opt", optimizedRouteTime, optimizedCostTime, cities, executionTimeOptTime);
 
     return 0;
 }
+

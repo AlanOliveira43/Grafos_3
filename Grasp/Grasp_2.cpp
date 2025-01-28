@@ -1,18 +1,16 @@
 #include <iostream>
 #include <vector>
-#include <algorithm>
-#include <limits>
-#include <random>
-#include <ctime>
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <algorithm>
+#include <limits>
+#include <chrono>
 
 using namespace std;
+using namespace chrono; // Para facilitar o uso das funções de tempo
 
 typedef vector<vector<double>> Matrix;
-
-default_random_engine generator(time(0));
 
 // Função para carregar a matriz de custos de um arquivo CSV
 Matrix loadMatrixFromCSV(const string& filePath) {
@@ -75,131 +73,34 @@ double calculateRouteCost(const vector<int>& route, const Matrix& costMatrix) {
     return cost;
 }
 
-// Estratégia de Busca Local: 2-opt
-void localSearch2Opt(vector<int>& route, const Matrix& costMatrix) {
+// Método de Troca de Vizinhos (Swap)
+pair<vector<int>, double> swapNeighbors(const vector<int>& initialPath, const Matrix& costMatrix) {
+    vector<int> bestPath = initialPath;
+    double bestCost = calculateRouteCost(bestPath, costMatrix);
     bool improved = true;
+
     while (improved) {
         improved = false;
-        for (size_t i = 1; i < route.size() - 2; ++i) {
-            for (size_t j = i + 1; j < route.size() - 1; ++j) {
-                vector<int> newRoute = route;
-                reverse(newRoute.begin() + i, newRoute.begin() + j + 1);
-                double oldCost = calculateRouteCost(route, costMatrix);
-                double newCost = calculateRouteCost(newRoute, costMatrix);
-                if (newCost < oldCost) {
-                    route = newRoute;
+        for (size_t i = 1; i < bestPath.size() - 2; ++i) {
+            for (size_t j = i + 1; j < bestPath.size() - 1; ++j) {
+                vector<int> newPath = bestPath;
+                swap(newPath[i], newPath[j]); // Troca as cidades i e j
+                double newCost = calculateRouteCost(newPath, costMatrix);
+
+                if (newCost < bestCost) {
+                    bestPath = newPath;
+                    bestCost = newCost;
                     improved = true;
                 }
             }
         }
     }
-}
 
-// Estratégia de Busca Local: Reinserção de Cidades (City Reinsertion)
-void localSearchCityReinsertion(vector<int>& route, const Matrix& costMatrix) {
-    bool improved = true;
-    while (improved) {
-        improved = false;
-
-        for (size_t i = 1; i < route.size() - 1; ++i) { // Ignorar cidade inicial e final
-            int cityToReinsert = route[i];
-            route.erase(route.begin() + i);
-
-            double bestIncrease = numeric_limits<double>::infinity();
-            size_t bestPosition = 0;
-
-            for (size_t j = 0; j < route.size() - 1; ++j) {
-                double increase = costMatrix[route[j]][cityToReinsert] +
-                                  costMatrix[cityToReinsert][route[j + 1]] -
-                                  costMatrix[route[j]][route[j + 1]];
-
-                if (increase < bestIncrease) {
-                    bestIncrease = increase;
-                    bestPosition = j + 1;
-                }
-            }
-
-            route.insert(route.begin() + bestPosition, cityToReinsert);
-
-            if (bestIncrease < 0) {
-                improved = true;
-            }
-        }
-    }
-}
-
-// Função de construção aleatória e gulosa
-vector<int> greedyRandomizedConstruction(const Matrix& costMatrix, double alpha) {
-    int n = costMatrix.size();
-    vector<int> route = {0};
-    vector<bool> visited(n, false);
-    visited[0] = true;
-
-    while (route.size() < n) {
-        int currentCity = route.back();
-        vector<pair<int, double>> candidates;
-
-        for (int i = 0; i < n; ++i) {
-            if (!visited[i]) {
-                candidates.emplace_back(i, costMatrix[currentCity][i]);
-            }
-        }
-
-        sort(candidates.begin(), candidates.end(), [](const auto& a, const auto& b) {
-            return a.second < b.second;
-        });
-
-        double minCost = candidates.front().second;
-        double maxCost = candidates.back().second;
-        double threshold = minCost + alpha * (maxCost - minCost);
-
-        vector<int> restrictedCandidates;
-        for (const auto& candidate : candidates) {
-            if (candidate.second <= threshold) {
-                restrictedCandidates.push_back(candidate.first);
-            }
-        }
-
-        uniform_int_distribution<int> distribution(0, restrictedCandidates.size() - 1);
-        int chosenCity = restrictedCandidates[distribution(generator)];
-
-        route.push_back(chosenCity);
-        visited[chosenCity] = true;
-    }
-
-    route.push_back(0); // Voltar para a cidade inicial
-    return route;
-}
-
-// Função principal do algoritmo GRASP
-pair<vector<int>, double> grasp(const Matrix& costMatrix, int maxIterations, double alpha, bool use2Opt) {
-    vector<int> bestRoute;
-    double bestCost = numeric_limits<double>::infinity();
-
-    for (int iter = 0; iter < maxIterations; ++iter) {
-        // Construção aleatória-gulosa
-        vector<int> route = greedyRandomizedConstruction(costMatrix, alpha);
-
-        // Busca local
-        if (use2Opt) {
-            localSearch2Opt(route, costMatrix);
-        } else {
-            localSearchCityReinsertion(route, costMatrix);
-        }
-
-        // Avaliar a solução
-        double cost = calculateRouteCost(route, costMatrix);
-        if (cost < bestCost) {
-            bestCost = cost;
-            bestRoute = route;
-        }
-    }
-
-    return {bestRoute, bestCost};
+    return {bestPath, bestCost};
 }
 
 // Função para salvar os resultados em um arquivo CSV
-void saveResults(const string& outputFile, const string& mode, const vector<int>& route, double cost, const vector<string>& cities) {
+void saveResults(const string& outputFile, const string& mode, const vector<int>& route, double cost, const vector<string>& cities, double executionTime) {
     ofstream outFile(outputFile, ios::app);
 
     if (!outFile.is_open()) {
@@ -207,11 +108,17 @@ void saveResults(const string& outputFile, const string& mode, const vector<int>
         return;
     }
 
+    static bool headerWritten = false;
+    if (!headerWritten) {
+        outFile << "Modo,Rota,Custo,Tempo (s)\n";
+        headerWritten = true;
+    }
+
     outFile << mode << ",\"";
     for (int city : route) {
         outFile << cities[city] << " ";
     }
-    outFile << "\"," << cost << "\n";
+    outFile << "\"," << cost << "," << executionTime << "\n";
 
     outFile.close();
 }
@@ -222,26 +129,51 @@ int main() {
     string distanceFile = "../Km_modificado.csv";
     string timeFile = "../Min_modificado.csv";
     string citiesFile = "../Cidades.csv";
-    string outputFile = "../resultados_Grasp_3CSV.csv";
+    string outputFile = "../resultados_swap.csv";
 
     // Carregar a matriz de distâncias
+    cout << "Carregando a matriz de distâncias..." << endl;
     Matrix distanceMatrix = loadMatrixFromCSV(distanceFile);
+
+    // Carregar a matriz de tempos
+    cout << "Carregando a matriz de tempos..." << endl;
     Matrix timeMatrix = loadMatrixFromCSV(timeFile);
+
+    // Carregar os nomes das cidades
+    cout << "Carregando os nomes das cidades..." << endl;
     vector<string> cities = loadCitiesFromCSV(citiesFile);
 
+    // Verificar se os dados foram carregados corretamente
     if (distanceMatrix.empty() || timeMatrix.empty() || cities.empty()) {
         cerr << "Erro: Dados não carregados corretamente." << endl;
         return 1;
     }
 
-    int maxIterations = 100;
-    double alpha = 0.3;
+    // Inicializar o percurso (0 -> 1 -> 2 -> ... -> n-1 -> 0)
+    size_t numCities = distanceMatrix.size();
+    vector<int> initialPath(numCities + 1);
+    for (size_t i = 0; i < numCities; ++i) {
+        initialPath[i] = i;
+    }
+    initialPath[numCities] = 0; // Retorna à cidade inicial
 
-    auto result = grasp(distanceMatrix, maxIterations, alpha, true);
-    saveResults(outputFile, "GRASP - Distância - 2-opt", result.first, result.second, cities);
+    // Medir tempo para otimização por distância
+    auto start = high_resolution_clock::now();
+    auto [optimizedPathDist, optimizedCostDist] = swapNeighbors(initialPath, distanceMatrix);
+    auto end = high_resolution_clock::now();
+    double executionTimeDist = duration_cast<duration<double>>(end - start).count();
 
-    result = grasp(timeMatrix, maxIterations, alpha, false);
-    saveResults(outputFile, "GRASP - Tempo - City Reinsertion", result.first, result.second, cities);
+    cout << "Custo otimizado (Distância - Troca de Vizinhos): " << optimizedCostDist << " | Tempo: " << executionTimeDist << "s" << endl;
+    saveResults(outputFile, "Distância - Troca de Vizinhos", optimizedPathDist, optimizedCostDist, cities, executionTimeDist);
+
+    // Medir tempo para otimização por tempo
+    start = high_resolution_clock::now();
+    auto [optimizedPathTime, optimizedCostTime] = swapNeighbors(initialPath, timeMatrix);
+    end = high_resolution_clock::now();
+    double executionTimeTime = duration_cast<duration<double>>(end - start).count();
+
+    cout << "Custo otimizado (Tempo - Troca de Vizinhos): " << optimizedCostTime << " | Tempo: " << executionTimeTime << "s" << endl;
+    saveResults(outputFile, "Tempo - Troca de Vizinhos", optimizedPathTime, optimizedCostTime, cities, executionTimeTime);
 
     return 0;
 }

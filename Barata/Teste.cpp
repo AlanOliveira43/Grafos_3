@@ -183,8 +183,8 @@ Matrix adjustMatrixToCities(const Matrix& originalMatrix, int cityCount) {
 }
 // Função principal
 int main() {
-    string distanceFile = "../Km.csv";   // Caminho do arquivo CSV com distâncias
-    string timeFile = "../Min.csv";      // Caminho do arquivo CSV com tempos
+    string distanceFile = "../Km_modificado.csv";   // Caminho do arquivo CSV com distâncias
+    string timeFile = "../Min_modificado.csv";      // Caminho do arquivo CSV com tempos
     string citiesFile = "../Cidades.csv"; // Caminho do arquivo CSV com nomes das cidades
     string outputFile = "../resultados.csv"; // Arquivo de saída
 

@@ -54,10 +54,17 @@ vector<string> loadCitiesFromCSV(const string& filePath) {
 
     string line;
     while (getline(file, line)) {
-        cities.push_back(line);
+        if (!line.empty()) { // Ignorar linhas vazias
+            cities.push_back(line);
+        }
     }
 
     file.close();
+
+    if (cities.empty()) {
+        cerr << "Erro: Nenhuma cidade foi carregada do arquivo " << filePath << endl;
+    }
+
     return cities;
 }
 
@@ -164,13 +171,22 @@ void executeAndCompare(const Matrix& costMatrix, const vector<string>& cities, c
 
     outFile.close();
 }
-
+// Função para ajustar a matriz de custos para o número de cidades carregadas
+Matrix adjustMatrixToCities(const Matrix& originalMatrix, int cityCount) {
+    Matrix adjustedMatrix(cityCount, vector<double>(cityCount));
+    for (int i = 0; i < cityCount; ++i) {
+        for (int j = 0; j < cityCount; ++j) {
+            adjustedMatrix[i][j] = originalMatrix[i][j];
+        }
+    }
+    return adjustedMatrix;
+}
 // Função principal
 int main() {
-    string distanceFile = "Km.csv";   // Caminho do arquivo CSV com distâncias
-    string timeFile = "Min.csv";      // Caminho do arquivo CSV com tempos
-    string citiesFile = "Cidades.csv"; // Caminho do arquivo CSV com nomes das cidades
-    string outputFile = "resultados.csv"; // Arquivo de saída
+    string distanceFile = "../Km.csv";   // Caminho do arquivo CSV com distâncias
+    string timeFile = "../Min.csv";      // Caminho do arquivo CSV com tempos
+    string citiesFile = "../Cidades.csv"; // Caminho do arquivo CSV com nomes das cidades
+    string outputFile = "../resultados.csv"; // Arquivo de saída
 
     Matrix distanceMatrix = loadMatrixFromCSV(distanceFile);
     Matrix timeMatrix = loadMatrixFromCSV(timeFile);
@@ -181,7 +197,6 @@ int main() {
         return 1;
     }
 
-    // Tamanhos a serem testados
     vector<int> sizes = {48, 36, 24, 12, 7, 6};
     int problemNumber = 1;
 
@@ -189,10 +204,7 @@ int main() {
         auto [slicedDistanceMatrix, slicedCities] = sliceMatrixAndCities(distanceMatrix, cities, size);
         auto [slicedTimeMatrix, slicedTimeCities] = sliceMatrixAndCities(timeMatrix, cities, size);
 
-        // Executar para distâncias
         executeAndCompare(slicedDistanceMatrix, slicedCities, outputFile, "Distância", problemNumber);
-
-        // Executar para tempos
         executeAndCompare(slicedTimeMatrix, slicedTimeCities, outputFile, "Tempo", problemNumber);
 
         problemNumber++;

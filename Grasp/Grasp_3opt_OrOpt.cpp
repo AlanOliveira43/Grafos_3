@@ -6,8 +6,10 @@
 #include <ctime>
 #include <fstream>
 #include <sstream>
+#include <chrono>
 
 using namespace std;
+using namespace chrono;
 
 typedef vector<vector<double>> Matrix;
 
@@ -42,6 +44,27 @@ Matrix loadMatrixFromCSV(const string& filePath) {
 
     file.close();
     return matrix;
+}
+
+// Função para carregar os nomes das cidades de um arquivo CSV
+vector<string> loadCitiesFromCSV(const string& filePath) {
+    vector<string> cities;
+    ifstream file(filePath);
+
+    if (!file.is_open()) {
+        cerr << "Erro ao abrir o arquivo: " << filePath << endl;
+        return cities;
+    }
+
+    string line;
+    while (getline(file, line)) {
+        if (!line.empty()) {
+            cities.push_back(line);
+        }
+    }
+
+    file.close();
+    return cities;
 }
 
 // Função para calcular o custo total de uma rota
@@ -182,29 +205,68 @@ pair<vector<int>, double> grasp(const Matrix& costMatrix, int maxIterations, dou
 
 // Função principal para testar o algoritmo GRASP
 int main() {
-    // Caminho para o arquivo CSV contendo a matriz de custos
-    string filePath = "../matriz_1_modificado.csv";
+    // Caminhos dos arquivos
+    string distanceFile = "../Km_modificado.csv";
+    string timeFile = "../Min_modificado.csv";
+    string citiesFile = "../Cidades.csv";
+    string outputFile = "../resultados_swap.csv";
 
-    // Carregar a matriz de custos
-    Matrix costMatrix = loadMatrixFromCSV(filePath);
+    // Carregar a matriz de distâncias
+    cout << "Carregando a matriz de distâncias..." << endl;
+    Matrix distanceMatrix = loadMatrixFromCSV(distanceFile);
 
-    if (costMatrix.empty()) {
-        cerr << "Erro: Matriz de custos não carregada." << endl;
+    // Carregar a matriz de tempos
+    cout << "Carregando a matriz de tempos..." << endl;
+    Matrix timeMatrix = loadMatrixFromCSV(timeFile);
+
+    // Carregar os nomes das cidades
+    cout << "Carregando os nomes das cidades..." << endl;
+    vector<string> cities;
+    ifstream file(citiesFile);
+    if (file.is_open()) {
+        string line;
+        while (getline(file, line)) {
+            if (!line.empty()) {
+                cities.push_back(line);
+            }
+        }
+        file.close();
+    } else {
+        cerr << "Erro ao abrir o arquivo de cidades: " << citiesFile << endl;
+        return 1;
+    }
+
+    if (distanceMatrix.empty() || timeMatrix.empty() || cities.empty()) {
+        cerr << "Erro: Dados não carregados corretamente." << endl;
         return 1;
     }
 
     int maxIterations = 100;
     double alpha = 0.3; // Controle do nível de aleatoriedade
 
-    auto result = grasp(costMatrix, maxIterations, alpha);
+    // Aplicar GRASP para distância
+    auto start = high_resolution_clock::now();
+    auto [bestRouteDist, bestCostDist] = grasp(distanceMatrix, maxIterations, alpha);
+    auto end = high_resolution_clock::now();
+    double elapsedTimeDist = duration_cast<duration<double>>(end - start).count();
 
-    cout << "Melhor rota encontrada: ";
-    for (int city : result.first) {
+    cout << "Melhor rota encontrada (Distância): ";
+    for (int city : bestRouteDist) {
         cout << city << " ";
     }
-    cout << result.first[0] << endl; // Volta ao ponto inicial
+    cout << "\nCusto total (Distância): " << bestCostDist << "\nTempo: " << elapsedTimeDist << "s" << endl;
 
-    cout << "Custo total da rota: " << result.second << endl;
+    // Aplicar GRASP para tempo
+    start = high_resolution_clock::now();
+    auto [bestRouteTime, bestCostTime] = grasp(timeMatrix, maxIterations, alpha);
+    end = high_resolution_clock::now();
+    double elapsedTimeTime = duration_cast<duration<double>>(end - start).count();
+
+    cout << "Melhor rota encontrada (Tempo): ";
+    for (int city : bestRouteTime) {
+        cout << city << " ";
+    }
+    cout << "\nCusto total (Tempo): " << bestCostTime << "\nTempo: " << elapsedTimeTime << "s" << endl;
 
     return 0;
 }

@@ -5,8 +5,10 @@
 #include <string>
 #include <algorithm>
 #include <limits>
+#include <chrono> // Incluindo chrono para medir o tempo
 
 using namespace std;
+using namespace chrono; // Para facilitar o uso das funções de medição de tempo
 
 typedef vector<vector<double>> Matrix;
 
@@ -98,7 +100,7 @@ pair<vector<int>, double> swapNeighbors(const vector<int>& initialPath, const Ma
 }
 
 // Função para salvar os resultados em um arquivo CSV
-void saveResults(const string& outputFile, const string& mode, const vector<int>& route, double cost, const vector<string>& cities) {
+void saveResults(const string& outputFile, const string& mode, const vector<int>& route, double cost, const vector<string>& cities, double executionTime) {
     ofstream outFile(outputFile, ios::app);
 
     if (!outFile.is_open()) {
@@ -108,7 +110,7 @@ void saveResults(const string& outputFile, const string& mode, const vector<int>
 
     static bool headerWritten = false;
     if (!headerWritten) {
-        outFile << "Modo,Rota,Custo\n";
+        outFile << "Modo,Rota,Custo,Tempo (s)\n";
         headerWritten = true;
     }
 
@@ -116,7 +118,7 @@ void saveResults(const string& outputFile, const string& mode, const vector<int>
     for (int city : route) {
         outFile << cities[city] << " ";
     }
-    outFile << "\"," << cost << "\n";
+    outFile << "\"," << cost << "," << executionTime << "\n";
 
     outFile.close();
 }
@@ -155,21 +157,23 @@ int main() {
     }
     initialPath[numCities] = 0; // Retorna à cidade inicial
 
-    // Cálculo do custo inicial
-    double initialCostDist = calculatePathCost(initialPath, distanceMatrix);
-
-    // Aplicar o método de Troca de Vizinhos para otimizar a distância
+    // Medir tempo para o custo inicial e otimização por distância
+    auto start = high_resolution_clock::now();
     auto [optimizedPathDist, optimizedCostDist] = swapNeighbors(initialPath, distanceMatrix);
-    cout << "Custo otimizado (Distância - Troca de Vizinhos): " << optimizedCostDist << endl;
-    saveResults(outputFile, "Distância - Troca de Vizinhos", optimizedPathDist, optimizedCostDist, cities);
+    auto end = high_resolution_clock::now();
+    double executionTimeDist = duration_cast<duration<double>>(end - start).count();
 
-    // Cálculo do custo inicial para tempo
-    double initialCostTime = calculatePathCost(initialPath, timeMatrix);
+    cout << "Custo otimizado (Distância - Troca de Vizinhos): " << optimizedCostDist << " | Tempo: " << executionTimeDist << "s" << endl;
+    saveResults(outputFile, "Distância - Troca de Vizinhos", optimizedPathDist, optimizedCostDist, cities, executionTimeDist);
 
-    // Aplicar o método de Troca de Vizinhos para otimizar o tempo
+    // Medir tempo para o custo inicial e otimização por tempo
+    start = high_resolution_clock::now();
     auto [optimizedPathTime, optimizedCostTime] = swapNeighbors(initialPath, timeMatrix);
-    cout << "Custo otimizado (Tempo - Troca de Vizinhos): " << optimizedCostTime << endl;
-    saveResults(outputFile, "Tempo - Troca de Vizinhos", optimizedPathTime, optimizedCostTime, cities);
+    end = high_resolution_clock::now();
+    double executionTimeTime = duration_cast<duration<double>>(end - start).count();
+
+    cout << "Custo otimizado (Tempo - Troca de Vizinhos): " << optimizedCostTime << " | Tempo: " << executionTimeTime << "s" << endl;
+    saveResults(outputFile, "Tempo - Troca de Vizinhos", optimizedPathTime, optimizedCostTime, cities, executionTimeTime);
 
     return 0;
 }

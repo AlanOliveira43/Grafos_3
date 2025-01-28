@@ -5,8 +5,10 @@
 #include <string>
 #include <limits>
 #include <algorithm>
+#include <chrono> // Inclui a biblioteca chrono para medir o tempo
 
 using namespace std;
+using namespace chrono; // Facilita o uso das funções de medição de tempo
 
 typedef vector<vector<double>> Matrix;
 
@@ -112,7 +114,7 @@ pair<vector<int>, double> insercaoMaisBarataCityInsertion(const Matrix& costMatr
 }
 
 // Função para salvar os resultados em um arquivo CSV
-void saveResults(const string& outputFile, const string& mode, const vector<int>& route, double cost, const vector<string>& cities) {
+void saveResults(const string& outputFile, const string& mode, const vector<int>& route, double cost, const vector<string>& cities, double executionTime) {
     ofstream outFile(outputFile, ios::app);
 
     if (!outFile.is_open()) {
@@ -122,7 +124,7 @@ void saveResults(const string& outputFile, const string& mode, const vector<int>
 
     static bool headerWritten = false;
     if (!headerWritten) {
-        outFile << "Modo,Rota,Custo\n";
+        outFile << "Modo,Rota,Custo,Tempo (s)\n";
         headerWritten = true;
     }
 
@@ -130,7 +132,7 @@ void saveResults(const string& outputFile, const string& mode, const vector<int>
     for (int city : route) {
         outFile << cities[city] << " ";
     }
-    outFile << "\"," << cost << "\n";
+    outFile << "\"," << cost << "," << executionTime << "\n";
 
     outFile.close();
 }
@@ -160,15 +162,23 @@ int main() {
         return 1;
     }
 
-    // Aplicar o Algoritmo da Inserção Mais Barata (City Insertion) com distâncias
+    // Medir tempo para Inserção Mais Barata com distâncias
+    auto start = high_resolution_clock::now();
     auto [initialRouteDist, initialCostDist] = insercaoMaisBarataCityInsertion(distanceMatrix);
-    cout << "Custo inicial (Distância - Inserção Mais Barata): " << initialCostDist << endl;
-    saveResults(outputFile, "Distância - Inserção Mais Barata", initialRouteDist, initialCostDist, cities);
+    auto end = high_resolution_clock::now();
+    double executionTimeDist = duration_cast<duration<double>>(end - start).count();
 
-    // Aplicar o Algoritmo da Inserção Mais Barata (City Insertion) com tempos
+    cout << "Custo inicial (Distância - Inserção Mais Barata): " << initialCostDist << " | Tempo: " << executionTimeDist << "s" << endl;
+    saveResults(outputFile, "Distância - Inserção Mais Barata", initialRouteDist, initialCostDist, cities, executionTimeDist);
+
+    // Medir tempo para Inserção Mais Barata com tempos
+    start = high_resolution_clock::now();
     auto [initialRouteTime, initialCostTime] = insercaoMaisBarataCityInsertion(timeMatrix);
-    cout << "Custo inicial (Tempo - Inserção Mais Barata): " << initialCostTime << endl;
-    saveResults(outputFile, "Tempo - Inserção Mais Barata", initialRouteTime, initialCostTime, cities);
+    end = high_resolution_clock::now();
+    double executionTimeTime = duration_cast<duration<double>>(end - start).count();
+
+    cout << "Custo inicial (Tempo - Inserção Mais Barata): " << initialCostTime << " | Tempo: " << executionTimeTime << "s" << endl;
+    saveResults(outputFile, "Tempo - Inserção Mais Barata", initialRouteTime, initialCostTime, cities, executionTimeTime);
 
     return 0;
 }

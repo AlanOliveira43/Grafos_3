@@ -74,13 +74,11 @@ double calculatePathCost(const vector<int>& path, const Matrix& costMatrix) {
 pair<vector<int>, double> insertionMaisBarata(const Matrix& costMatrix) {
     int n = costMatrix.size(); // Número de cidades
 
-    // Começar com duas cidades arbitrárias
     vector<int> route = {0, 1, 0}; // Começar com a cidade 0 e 1 e voltar à 0
     vector<bool> visited(n, false);
     visited[0] = true;
     visited[1] = true;
 
-    // Inserir cidades restantes iterativamente na posição de menor custo
     while (route.size() < n + 1) {
         double bestIncrease = numeric_limits<double>::infinity();
         int bestCity = -1;
@@ -102,19 +100,30 @@ pair<vector<int>, double> insertionMaisBarata(const Matrix& costMatrix) {
             }
         }
 
-        // Inserir a melhor cidade encontrada na melhor posição
         route.insert(route.begin() + bestPosition + 1, bestCity);
         visited[bestCity] = true;
     }
 
-    // Calcular o custo total da rota final
     double bestCost = calculatePathCost(route, costMatrix);
 
     return {route, bestCost};
 }
 
+// Função para cortar a matriz e o vetor de cidades para o tamanho desejado
+pair<Matrix, vector<string>> sliceMatrixAndCities(const Matrix& costMatrix, const vector<string>& cities, int size) {
+    Matrix slicedMatrix(size, vector<double>(size));
+    for (int i = 0; i < size; ++i) {
+        for (int j = 0; j < size; ++j) {
+            slicedMatrix[i][j] = costMatrix[i][j];
+        }
+    }
+
+    vector<string> slicedCities(cities.begin(), cities.begin() + size);
+    return {slicedMatrix, slicedCities};
+}
+
 // Função para executar e registrar os resultados
-void executeAndCompare(const Matrix& costMatrix, const vector<string>& cities, const string& outputFile, const string& mode) {
+void executeAndCompare(const Matrix& costMatrix, const vector<string>& cities, const string& outputFile, const string& mode, int problemNumber) {
     if (costMatrix.size() != cities.size()) {
         cerr << "Erro: O tamanho da matriz de custos não corresponde ao número de cidades." << endl;
         return;
@@ -129,7 +138,7 @@ void executeAndCompare(const Matrix& costMatrix, const vector<string>& cities, c
     // Escrever cabeçalho apenas na primeira execução
     static bool headerWritten = false;
     if (!headerWritten) {
-        outFile << "Problema,Rota,Custo,Tempo(ms),Modo\n";
+        outFile << "Problema,Número de Cidades,Rota,Custo,Tempo(ms),Modo\n";
         headerWritten = true;
     }
 
@@ -140,14 +149,14 @@ void executeAndCompare(const Matrix& costMatrix, const vector<string>& cities, c
     auto duration = duration_cast<milliseconds>(end - start).count();
 
     // Registrar resultados
-    outFile << "Problema,\"";
+    outFile << problemNumber << "," << cities.size() << ",\"";
     for (int city : route) {
         outFile << cities[city] << " ";
     }
     outFile << "\"," << cost << "," << duration << "," << mode << "\n";
 
     // Exibir no console
-    cout << "Rota encontrada: ";
+    cout << "Problema " << problemNumber << ": Rota encontrada: ";
     for (int city : route) {
         cout << cities[city] << " ";
     }
@@ -158,12 +167,11 @@ void executeAndCompare(const Matrix& costMatrix, const vector<string>& cities, c
 
 // Função principal
 int main() {
-    string distanceFile = "../Km.csv";   // Caminho do arquivo CSV com distâncias
-    string timeFile = "../Min.csv";      // Caminho do arquivo CSV com tempos
-    string citiesFile = "../Cidades.csv"; // Caminho do arquivo CSV com nomes das cidades
-    string outputFile = "../resultados.csv"; // Arquivo de saída
+    string distanceFile = "Km.csv";   // Caminho do arquivo CSV com distâncias
+    string timeFile = "Min.csv";      // Caminho do arquivo CSV com tempos
+    string citiesFile = "Cidades.csv"; // Caminho do arquivo CSV com nomes das cidades
+    string outputFile = "resultados.csv"; // Arquivo de saída
 
-    // Carregar os dados
     Matrix distanceMatrix = loadMatrixFromCSV(distanceFile);
     Matrix timeMatrix = loadMatrixFromCSV(timeFile);
     vector<string> cities = loadCitiesFromCSV(citiesFile);
@@ -173,11 +181,22 @@ int main() {
         return 1;
     }
 
-    // Executar para distâncias
-    executeAndCompare(distanceMatrix, cities, outputFile, "Distância");
+    // Tamanhos a serem testados
+    vector<int> sizes = {48, 36, 24, 12, 7, 6};
+    int problemNumber = 1;
 
-    // Executar para tempos
-    executeAndCompare(timeMatrix, cities, outputFile, "Tempo");
+    for (int size : sizes) {
+        auto [slicedDistanceMatrix, slicedCities] = sliceMatrixAndCities(distanceMatrix, cities, size);
+        auto [slicedTimeMatrix, slicedTimeCities] = sliceMatrixAndCities(timeMatrix, cities, size);
+
+        // Executar para distâncias
+        executeAndCompare(slicedDistanceMatrix, slicedCities, outputFile, "Distância", problemNumber);
+
+        // Executar para tempos
+        executeAndCompare(slicedTimeMatrix, slicedTimeCities, outputFile, "Tempo", problemNumber);
+
+        problemNumber++;
+    }
 
     return 0;
 }

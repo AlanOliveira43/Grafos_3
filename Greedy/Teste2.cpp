@@ -117,8 +117,8 @@ void salvarResultados(const string &nomeArquivo, const pair<vector<int>, double>
 
 int main() {
     // Carregar os dados das distâncias automaticamente (Km_modificado.csv e Min_modificado.csv)
-    string arquivoKm = "Km_modificado.csv";
-    string arquivoMin = "Min_modificado.csv";
+    string arquivoKm = "../Km_modificado.csv";
+    string arquivoMin = "../Min_modificado.csv";
 
     cout << "Processando arquivo de distâncias em Km..." << endl;
     vector<vector<double>> distanciasKm = carregarMatriz(arquivoKm);

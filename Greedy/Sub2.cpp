@@ -4,10 +4,14 @@
 #include <limits>
 #include <fstream>
 #include <sstream>
+#include <random>
+#include <ctime>
 
 using namespace std;
 
 typedef vector<vector<double>> Matrix;
+
+default_random_engine generator(time(0));
 
 // Função para carregar a matriz de custos de um arquivo CSV
 Matrix loadMatrixFromCSV(const string& filePath) {
@@ -97,6 +101,72 @@ void localSearch2Opt(vector<int>& route, const Matrix& costMatrix) {
     }
 }
 
+// Função de construção gulosa-randomizada
+vector<int> greedyRandomizedConstruction(const Matrix& costMatrix, double alpha) {
+    int n = costMatrix.size();
+    vector<int> route = {0};
+    vector<bool> visited(n, false);
+    visited[0] = true;
+
+    while (route.size() < n) {
+        int currentCity = route.back();
+        vector<pair<int, double>> candidates;
+
+        for (int i = 0; i < n; ++i) {
+            if (!visited[i]) {
+                candidates.emplace_back(i, costMatrix[currentCity][i]);
+            }
+        }
+
+        sort(candidates.begin(), candidates.end(), [](const auto& a, const auto& b) {
+            return a.second < b.second;
+        });
+
+        double minCost = candidates.front().second;
+        double maxCost = candidates.back().second;
+        double threshold = minCost + alpha * (maxCost - minCost);
+
+        vector<int> restrictedCandidates;
+        for (const auto& candidate : candidates) {
+            if (candidate.second <= threshold) {
+                restrictedCandidates.push_back(candidate.first);
+            }
+        }
+
+        uniform_int_distribution<int> distribution(0, restrictedCandidates.size() - 1);
+        int chosenCity = restrictedCandidates[distribution(generator)];
+
+        route.push_back(chosenCity);
+        visited[chosenCity] = true;
+    }
+
+    route.push_back(0); // Voltar para a cidade inicial
+    return route;
+}
+
+// Função principal do algoritmo GRASP
+pair<vector<int>, double> grasp(const Matrix& costMatrix, int maxIterations, double alpha) {
+    vector<int> bestRoute;
+    double bestCost = numeric_limits<double>::infinity();
+
+    for (int iter = 0; iter < maxIterations; ++iter) {
+        // Construção gulosa-randomizada
+        vector<int> route = greedyRandomizedConstruction(costMatrix, alpha);
+
+        // Busca local (2-opt)
+        localSearch2Opt(route, costMatrix);
+
+        // Avaliar a solução
+        double cost = calculateRouteCost(route, costMatrix);
+        if (cost < bestCost) {
+            bestCost = cost;
+            bestRoute = route;
+        }
+    }
+
+    return {bestRoute, bestCost};
+}
+
 // Função para salvar os resultados em um arquivo CSV
 void saveResults(const string& outputFile, const string& mode, const vector<int>& route, double cost, const vector<string>& cities) {
     ofstream outFile(outputFile, ios::app);
@@ -127,7 +197,7 @@ int main() {
     string distanceFile = "../Km_modificado.csv";
     string timeFile = "../Min_modificado.csv";
     string citiesFile = "../Cidades.csv";
-    string outputFile = "../resultados_sub_greedy.csv";
+    string outputFile = "../resultados_grasp.csv";
 
     // Carregar a matriz de distâncias
     cout << "Carregando a matriz de distâncias..." << endl;
@@ -147,37 +217,26 @@ int main() {
         return 1;
     }
 
-    // Inicializar a rota (0 → 1 → 2 → ... → n-1 → 0)
-    vector<int> route;
-    for (size_t i = 0; i < distanceMatrix.size(); ++i) {
-        route.push_back(i);
+    int maxIterations = 100;
+    double alpha = 0.3; // Controle do nível de aleatoriedade
+
+    // Aplicar GRASP para distância
+    auto [bestRouteDist, bestCostDist] = grasp(distanceMatrix, maxIterations, alpha);
+    cout << "Melhor rota encontrada (Distância): ";
+    for (int city : bestRouteDist) {
+        cout << cities[city] << " ";
     }
-    route.push_back(route[0]); // Retorna à cidade inicial
+    cout << "\nCusto total (Distância): " << bestCostDist << endl;
+    saveResults(outputFile, "GRASP - Distância", bestRouteDist, bestCostDist, cities);
 
-    // Cálculo do custo inicial para distância
-    double initialCostDist = calculateRouteCost(route, distanceMatrix);
-
-    // Aplicar a busca local 2-opt para otimizar a distância
-    localSearch2Opt(route, distanceMatrix);
-    double optimizedCostDist = calculateRouteCost(route, distanceMatrix);
-    cout << "Custo otimizado (Distância - 2-opt): " << optimizedCostDist << endl;
-    saveResults(outputFile, "Distância - 2-opt", route, optimizedCostDist, cities);
-
-    // Resetar a rota inicial
-    route.clear();
-    for (size_t i = 0; i < timeMatrix.size(); ++i) {
-        route.push_back(i);
+    // Aplicar GRASP para tempo
+    auto [bestRouteTime, bestCostTime] = grasp(timeMatrix, maxIterations, alpha);
+    cout << "Melhor rota encontrada (Tempo): ";
+    for (int city : bestRouteTime) {
+        cout << cities[city] << " ";
     }
-    route.push_back(route[0]); // Retorna à cidade inicial
-
-    // Cálculo do custo inicial para tempo
-    double initialCostTime = calculateRouteCost(route, timeMatrix);
-
-    // Aplicar a busca local 2-opt para otimizar o tempo
-    localSearch2Opt(route, timeMatrix);
-    double optimizedCostTime = calculateRouteCost(route, timeMatrix);
-    cout << "Custo otimizado (Tempo - 2-opt): " << optimizedCostTime << endl;
-    saveResults(outputFile, "Tempo - 2-opt", route, optimizedCostTime, cities);
+    cout << "\nCusto total (Tempo): " << bestCostTime << endl;
+    saveResults(outputFile, "GRASP - Tempo", bestRouteTime, bestCostTime, cities);
 
     return 0;
 }
